@@ -41,7 +41,7 @@ class PaizoDownloader
     @password=opts[:password]
     @log=opts[:log]
     @agent=opts[:agent]
-    @download_path=opts[:dir] || opts[:download_path] || "#{ENV["HOME"]}/Dropbox/Paizo"
+    @download_path=opts[:dir] || opts[:download_path] || "#{ENV["HOME"]}/Dropbox/GnomePunters/Paizo"
     unless @agent
       @agent=Mechanize.new
     end
@@ -131,7 +131,14 @@ class PaizoDownloader
       date[:downloaded] = timestamp_from_td(download_row.search('td')[2])
       date[:updated] = timestamp_from_td(download_row.search('td')[3])
       date[:added] = timestamp_from_td(download_row.search('td')[4])
-      record = { :docname => docname, :publisher => publisher, :link => download_row.at('a'), :idx => idx, :row => download_row, :date => date }
+      if date[:downloaded].nil?
+        status=:never
+      elsif date[:downloaded] > date[:updated]
+        status=:old
+      else
+        status=:new
+      end
+      record = { :docname => docname, :publisher => publisher, :link => download_row.at('a'), :idx => idx, :row => download_row, :date => date, :status => status }
       @downloads.push record
     end
     @downloads
@@ -220,16 +227,6 @@ log.info "found #{paizo.downloads.length} download links"
 paizo.downloads.each do |download| 
   d=download[:date]
   msg=""
-  if download[:downloaded].nil?
-    msg = "Never downloaded"
-    download[:status]=:never
-  elsif download[:downloaded] > download[:updated]
-    msg = "Have most recent: #{download[:updated]} is older than #{download[:downloaded]}"
-    download[:status]=:old
-  else
-    msg = "Must download: #{download[:updated]} is newer than #{download[:downloaded]}"
-    download[:status]=:new
-  end
   puts "#{download[:idx]}: #{download[:docname]}: #{msg}"
 end
 
